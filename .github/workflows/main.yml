@@ -1,0 +1,43 @@
+name: Validar y simular deploy
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Preparar repositorio
+        uses: actions/checkout@v4
+
+      - name: PASO 1 Estructura de carpetas
+        run: |
+          test -d app
+          test -f app/index.php
+          test -f Dockerfile
+          test -f docker-compose.yml
+          test -f db/init.sql
+
+      - name: PASO 2 Validar sintaxis de compose
+        run: docker compose config --quiet
+
+      - name: PASO 3 Construir y levantar
+        run: docker compose up -d --build --wait
+
+      - name: PASO 4 Probar la aplicacion
+        run: |
+          docker compose ps
+          curl -fsS http://localhost:8080 | grep "Teclado"
+
+      - name: PASO 5 Ver logs si algo fallo
+        if: failure()
+        run: docker compose logs
+
+      - name: PASO 6 Bajar todo
+        if: always()
+        run: docker compose down -v
